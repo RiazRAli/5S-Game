@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>5S Sorting Game</title>
+  <style>
+    body { margin: 0; font-family: sans-serif; background: #f0f0f0; display: flex; flex-direction: column; align-items: center; }
+    #container { display: flex; flex-direction: row; align-items: flex-start; margin-top: 20px; }
+    #gameArea { position: relative; width: 800px; height: 600px; background: white; border: 2px solid #000; overflow: hidden; }
+    #scorePanel { display: flex; flex-direction: column; margin-left: 40px; gap: 25px; font-size: 22px; margin-top: 20px; min-width: 220px; background: #f8f8f8; border-radius: 12px; padding: 16px 24px; box-shadow: 2px 2px 8px #ccc; height: 590px; align-items: flex-start; justify-content: flex-start; }
+    #infoBar { display: flex; gap: 40px; align-items: center; margin-top: 10px; margin-bottom: 8px; }
+    .grid-line { position: absolute; background-color: lightgrey; }
+    .grid-line.horizontal { width: 100%; height: 1px; }
+    .grid-line.vertical { height: 100%; width: 1px; }
+    .item { position: absolute; font-weight: bold; cursor: pointer; user-select: none; pointer-events: auto; z-index: 10; }
+    .clutter { position: absolute; pointer-events: none; z-index: 1000; }
+    .circle { border-radius: 50%; }
+    .starburst { clip-path: polygon( 50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35% ); }
+    #timer, #score { font-size: 24px; }
+    #playBtn { padding: 10px 20px; font-size: 18px; cursor: pointer; margin-top: 10px; }
+    #modalOverlay { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; display: none; align-items: flex-start; justify-content: center; background: rgba(0,0,0,0.7); z-index: 99999; }
+    #modalOverlay.show { display: flex; }
+    #modalBox { position: relative; top: 70vh; transform: translateY(-70%); background: #fff; border-radius: 24px; padding: 50px 60px; min-width: 420px; box-shadow: 0 8px 48px #333c; font-size: 2.4rem; text-align: center; display: flex; flex-direction: column; gap: 32px; align-items: center; }
+    #nextRoundBtn { font-size: 2rem; padding: 16px 48px; margin-top: 20px; border-radius: 12px; border: none; background: #228be6; color: white; cursor: pointer; transition: background 0.15s; }
+    #nextRoundBtn:hover { background: #155dab; }
+    #playAgainBtn { font-size: 2rem; padding: 16px 48px; margin-top: 20px; border-radius: 12px; border: none; background: #0ba144; color: white; cursor: pointer; transition: background 0.15s; display: none; }
+    #playAgainBtn:hover { background: #086c2e; }
+    #round6inputArea { display: none; flex-direction: row; align-items: center; gap: 14px; justify-content: center; margin-top: 28px; }
+    #round6inputArea input[type="number"] { font-size: 2rem; width: 80px; padding: 4px 8px; border-radius: 7px; border: 1px solid #ccc; }
+    #round6SubmitBtn { font-size: 1.7rem; padding: 7px 20px; border-radius: 7px; background: #228be6; color: white; border: none; margin-left: 14px; cursor: pointer; }
+    #round6Checkmarks, #round7Checkmarks { font-size: 2.2rem; color: green; margin-left: 16px; }
+    #lessonModalOverlay { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; display: none; align-items: flex-start; justify-content: center; background: rgba(0,0,0,0.7); z-index: 999999; }
+    #lessonModalOverlay.show { display: flex; }
+    #lessonModalBox { position: relative; top: 68vh; transform: translateY(-70%); background: #fff; border-radius: 22px; padding: 42px 48px; min-width: 400px; box-shadow: 0 8px 48px #333c; font-size: 1.5rem; text-align: center; display: flex; flex-direction: column; gap: 22px; align-items: center; }
+    #startRoundBtn { font-size:1.7rem;padding:12px 32px;margin-top:28px;border-radius:10px;background:#228be6;color:white;border:none;cursor:pointer; }
+    #signature {
+      position: fixed;
+      bottom: 10px;
+      right: 14px;
+      font-size: 14px;
+      color: #666;
+      opacity: 0.8;
+      z-index: 1000000;
+      pointer-events: none;
+      user-select: none;
+    }
+
+  </style>
+</head>
+<div id="signature">Created by: Riaz Ali</div>
+
+<body>
+  <h1>5S Sorting Game</h1>
+  <button id="playBtn">Play</button>
+  <div id="infoBar">
+    <div id="timer">Time: 30</div>
+    <div id="score">Current Round Score: 0</div>
+  </div>
+  <div id="container">
+    <div id="gameArea"></div>
+    <div id="scorePanel">
+      <div id="round1Score">Round 1 Score: -</div>
+      <div id="round2Score">Round 2 Score: -</div>
+      <div id="round3Score">Round 3 Score: -</div>
+      <div id="round4Score">Round 4 Score: -</div>
+      <div id="round5Score">Round 5 Score: -</div>
+      <div id="round6Score">Round 6 Score: -</div>
+      <div id="round6Checkmarks"></div>
+      <div id="round7Score">Round 7 Score: -</div>
+      <div id="round7Checkmarks"></div>
+    </div>
+  </div>
+  <div id="round6inputArea">
+    <span>Enter the 2 missing numbers:</span>
+    <input id="missing1" type="number" min="1" max="60" step="1">
+    <input id="missing2" type="number" min="1" max="60" step="1">
+    <button id="round6SubmitBtn">Submit</button>
+  </div>
+  <div id="lessonModalOverlay">
+    <div id="lessonModalBox">
+      <div id="lessonModalMsg"></div>
+      <button id="startRoundBtn">Start Round</button>
+    </div>
+  </div>
+  <div id="modalOverlay">
+    <div id="modalBox">
+      <div id="modalMsg"></div>
+      <button id="nextRoundBtn" style="display: none;">Next Round</button>
+      <button id="playAgainBtn" style="display: none;">Play Again</button>
+    </div>
+  </div>
+  <script>
+    // DOM references
+    const gameArea = document.getElementById('gameArea');
+    const timerDisplay = document.getElementById('timer');
+    const scoreDisplay = document.getElementById('score');
+    const round1Display = document.getElementById('round1Score');
+    const round2Display = document.getElementById('round2Score');
+    const round3Display = document.getElementById('round3Score');
+    const round4Display = document.getElementById('round4Score');
+    const round5Display = document.getElementById('round5Score');
+    const round6Display = document.getElementById('round6Score');
+    const round7Display = document.getElementById('round7Score');
+    const round6Checkmarks = document.getElementById('round6Checkmarks');
+    const round7Checkmarks = document.getElementById('round7Checkmarks');
+    const playBtn = document.getElementById('playBtn');
+    const modalOverlay = document.getElementById('modalOverlay');
+    const modalMsg = document.getElementById('modalMsg');
+    const nextRoundBtn = document.getElementById('nextRoundBtn');
+    const playAgainBtn = document.getElementById('playAgainBtn');
+    const round6inputArea = document.getElementById('round6inputArea');
+    const missing1Input = document.getElementById('missing1');
+    const missing2Input = document.getElementById('missing2');
+    const round6SubmitBtn = document.getElementById('round6SubmitBtn');
+    const lessonModalOverlay = document.getElementById('lessonModalOverlay');
+    const lessonModalMsg = document.getElementById('lessonModalMsg');
+    const startRoundBtn = document.getElementById('startRoundBtn');
+    let expected = 1, highest = 0, timeLeft = 30, timer = null, round = 1;
+    let round1Score = 0, round2Score = 0, round3Score = 0, round4Score = 0, round5Score = 0, round6Score = 0, round7Score = 0;
+    let occupiedAreas = [], roundEnded = false, round6missing = [], round7missing = [];
+    const gridCells = [
+      [2, 2], [1, 2], [0, 2],
+      [2, 1], [1, 1], [0, 1],
+      [2, 0], [1, 0], [0, 0]
+    ];
+    const fiveSRoundLessons = [
+      "",
+      `In this round, the numbers represent parts, tools, or materials, but they are scattered in random places and mixed up with unrelated items. This is what happens when there is no workplace organization: everything is jumbled together, and there are even distractions (like random letters) that serve no purpose.<br><br>
+      When items aren’t organized, it takes longer to find the right part, mistakes happen more often, and productivity drops. This round shows the confusion and wasted time that comes from not applying 5S principles.<br><br>
+      <b>You must find the numbers 1 to 49 in ORDER to complete your task. Click on each number as you find them.</b>`,
+      `The first step of 5S is <b>Sort</b>—removing unnecessary items from the workspace. Extra parts, obsolete tools, or materials that aren’t needed for the current job only create clutter and slow you down.<br><br>
+      In the game, all numbers and letters were mixed together, but for this task, only numbers 1 to 49 are required. Everything else should be removed.<br><br>
+      By sorting, you reduce search time, minimize errors, and create a clearer, safer work environment.`,
+      `After sorting, the next step is <b>Set in Order</b>—arranging everything that remains so each item has a specific, visible, and easily accessible place. Frequently used tools or parts should be closest to where they’re needed, while less-used items can be stored further away.<br><br>
+      In this round, the numbers appear in specific grid locations, making them easier to find, but random stains (representing workplace obstacles or dirt) can still get in the way.<br><br>
+      A well-organized workspace means no time wasted searching and everything is ready when needed.`,
+      `The third step is <b>Shine</b>—cleaning and inspecting the workspace regularly. Cleanliness is not just about appearance: a clean workspace helps you spot leaks, wear, or safety hazards before they cause problems.<br><br>
+      In the game, the stains are now gone, and the numbers are visible and organized.<br><br>
+      Routine cleaning in 5S also includes inspecting tools and equipment, so small issues are found and fixed early.`,
+      `<b>Standardize</b> means creating consistent routines for sorting, organizing, and cleaning—so the improvements from the first three steps are sustained by everyone, every shift.<br><br>
+      This round shows all numbers upright and in a clear, repeating order, mimicking a standardized process.<br><br>
+      Standardized work instructions, color coding, labels, and visual controls help ensure the whole team follows the same best practices, keeping everything in order every day.`,
+      `<b>What happens when Sustain isn't implemented?</b><br><br>
+      Without “Sustain”, all your hard work slips away. Old habits creep back, clutter returns, things go missing, and it's suddenly hard to find a specific part when you need it. This round simulates what happens if no one maintains 5S: confusion, lost time, and a messy workspace again. It’s a reminder that improvement is never a one-time thing—it must be kept up!`,
+      `<b>Sustain = Keep it Going</b><br><br>
+      Sustain is the final—and most important—step in 5S. It means making the improvements a regular habit. Daily checks, leadership support, and everyone’s involvement make 5S stick. When you sustain, it never gets chaotic again. The workspace stays clean, organized, and productive. That’s the real power of 5S!`
+    ];
+
+    function showLessonForRound(round, onStart) {
+      if (round >= 1 && round <= 7) {
+        lessonModalMsg.innerHTML = fiveSRoundLessons[round];
+        lessonModalOverlay.classList.add('show');
+        startRoundBtn.onclick = () => {
+          lessonModalOverlay.classList.remove('show');
+          if (typeof onStart === "function") onStart();
+        };
+      } else {
+        if (typeof onStart === "function") onStart();
+      }
+    }
+
+    function drawGrid(gridType) {
+      gameArea.querySelectorAll('.grid-line').forEach(el => el.remove());
+      if (gridType === 5 || gridType === 7) {
+        const cellWidth = 800 / 10, cellHeight = 600 / 5;
+        for (let i = 1; i < 10; i++) {
+          const vLine = document.createElement('div');
+          vLine.className = 'grid-line vertical';
+          vLine.style.left = `${i * cellWidth}px`;
+          gameArea.appendChild(vLine);
+        }
+        for (let i = 1; i < 5; i++) {
+          const hLine = document.createElement('div');
+          hLine.className = 'grid-line horizontal';
+          hLine.style.top = `${i * cellHeight}px`;
+          gameArea.appendChild(hLine);
+        }
+      } else if (gridType === 3 || gridType === 4) {
+        const cellWidth = 800 / 3, cellHeight = 600 / 3;
+        for (let i = 1; i < 3; i++) {
+          const vLine = document.createElement('div');
+          vLine.className = 'grid-line vertical';
+          vLine.style.left = `${i * cellWidth}px`;
+          gameArea.appendChild(vLine);
+        }
+        for (let i = 1; i < 3; i++) {
+          const hLine = document.createElement('div');
+          hLine.className = 'grid-line horizontal';
+          hLine.style.top = `${i * cellHeight}px`;
+          gameArea.appendChild(hLine);
+        }
+      }
+    }
+    function getRandomFontSize() {
+      return `${10 + Math.random() * 60}px`;
+    }
+    function getRandomPositionAvoidingOverlap(fontSize, forcedX = null, forcedY = null) {
+      const maxAttempts = 100;
+      let attempt = 0;
+      const width = parseInt(fontSize);
+      const height = width;
+      while (attempt < maxAttempts) {
+        let x = forcedX !== null ? forcedX : Math.random() * (800 - width);
+        let y = forcedY !== null ? forcedY : Math.random() * (600 - height);
+        const overlaps = occupiedAreas.some(area => {
+          return !(x + width < area.x || x > area.x + area.width || y + height < area.y || y > area.y + area.height);
+        });
+        if (!overlaps) {
+          occupiedAreas.push({ x, y, width, height });
+          return { x, y };
+        }
+        attempt++;
+      }
+      return { x: Math.random() * (800 - 40), y: Math.random() * (600 - 40) };
+    }
+    function addClutter() {
+      const shapes = ["circle", "starburst", "square"];
+      const colors = ["red", "blue", "green", "orange"];
+      const placedStains = [];
+      for (let i = 0; i < 3; i++) {
+        const div = document.createElement("div");
+        div.className = `clutter ${shapes[i % shapes.length]}`;
+        const size = 160 + Math.random() * 160;
+        div.style.width = `${size}px`;
+        div.style.height = `${size}px`;
+        div.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        div.style.transform = `rotate(${Math.floor(Math.random() * 360)}deg)`;
+        div.style.opacity = (0.2 + Math.random() * 0.25).toFixed(2);
+        let x, y, attempt = 0;
+        while (attempt < 100) {
+          x = Math.random() * (800 - size);
+          y = Math.random() * (600 - size);
+          const overlaps = placedStains.some(s => !(x + size < s.x || x > s.x + s.size || y + size < s.y || y > s.y + s.size));
+          if (!overlaps) break;
+          attempt++;
+        }
+        placedStains.push({ x, y, size });
+        div.style.left = `${x}px`;
+        div.style.top = `${y}px`;
+        gameArea.appendChild(div);
+      }
+    }
+    function createItems() {
+      gameArea.innerHTML = '';
+      occupiedAreas = [];
+      if (round === 3 || round === 4) drawGrid(3);
+      if (round === 5) drawGrid(5);
+      if (round === 7) drawGrid(7);
+      if (round === 7) {
+        let numbers = [];
+        for (let n = 1; n <= 49; n++) numbers.push(n);
+        round7missing = [];
+        while (round7missing.length < 2) {
+          const rand = 1 + Math.floor(Math.random() * 49);
+          if (!round7missing.includes(rand)) round7missing.push(rand);
+        }
+        for (let idx = 0; idx < 49; idx++) {
+          const row = Math.floor(idx / 10), col = idx % 10;
+          const cellW = 800 / 10, cellH = 600 / 5;
+          const n = idx + 1;
+          if (round7missing.includes(n)) continue;
+          const maxFontPx = Math.min(cellW, cellH) - 14;
+          const fontSizePx = 24 + Math.random() * (maxFontPx - 24);
+          const fontSize = `${fontSizePx}px`;
+          const x = col * cellW + Math.random() * Math.max(0, cellW - fontSizePx - 5);
+          const y = row * cellH + Math.random() * Math.max(0, cellH - fontSizePx - 5);
+          const div = document.createElement('div');
+          div.className = 'item';
+          div.textContent = n.toString();
+          div.style.left = `${x}px`;
+          div.style.top = `${y}px`;
+          div.style.fontSize = fontSize;
+          div.style.transform = "rotate(0deg)";
+          div.style.zIndex = (100 - n).toString();
+          gameArea.appendChild(div);
+        }
+        return;
+      }
+      if (round === 6) {
+        let numbers = [];
+        for (let n = 1; n <= 60; n++) numbers.push(n);
+        round6missing = [];
+        while (round6missing.length < 2) {
+          const rand = 13 + Math.floor(Math.random() * 37); // 13..49 inclusive
+          if (!round6missing.includes(rand)) round6missing.push(rand);
+        }
+        const presentNumbers = numbers.filter(n => !round6missing.includes(n));
+        const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+        let items = presentNumbers.map(n => n.toString())
+          .concat(Array.from({ length: 30 }, () => letters[Math.floor(Math.random() * letters.length)]));
+        items = items.sort(() => Math.random() - 0.5);
+        items.forEach(content => {
+          const fontSize = `${10 + Math.random() * 60}px`;
+          const pos = getRandomPositionAvoidingOverlap(fontSize);
+          const angle = Math.floor(Math.random() * 360);
+          const div = document.createElement('div');
+          div.className = 'item';
+          div.textContent = content;
+          div.style.left = `${pos.x}px`;
+          div.style.top = `${pos.y}px`;
+          div.style.fontSize = fontSize;
+          div.style.transform = `rotate(${angle}deg)`;
+          div.style.zIndex = (!isNaN(content) ? (100 - parseInt(content)).toString() : '50');
+          gameArea.appendChild(div);
+        });
+        addClutter();
+        return;
+      }
+      if (round === 5) {
+        for (let idx = 0; idx < 49; idx++) {
+          const row = Math.floor(idx / 10), col = idx % 10;
+          const cellW = 800 / 10, cellH = 600 / 5;
+          const n = idx + 1;
+          const maxFontPx = Math.min(cellW, cellH) - 14;
+          const fontSizePx = 24 + Math.random() * (maxFontPx - 24);
+          const fontSize = `${fontSizePx}px`;
+          const x = col * cellW + Math.random() * Math.max(0, cellW - fontSizePx - 5);
+          const y = row * cellH + Math.random() * Math.max(0, cellH - fontSizePx - 5);
+          const div = document.createElement('div');
+          div.className = 'item';
+          div.textContent = n.toString();
+          div.style.left = `${x}px`;
+          div.style.top = `${y}px`;
+          div.style.fontSize = fontSize;
+          div.style.transform = "rotate(0deg)";
+          div.style.zIndex = (100 - n).toString();
+          gameArea.appendChild(div);
+        }
+        return;
+      }
+      if (round === 3 || round === 4) {
+        for (let n = 1; n <= 49; n++) {
+          const patternIdx = (n - 1) % 9;
+          const cycle = Math.floor((n - 1) / 9);
+          const [gx, gy] = gridCells[patternIdx];
+          const cellW = 800 / 3, cellH = 600 / 3;
+          let x = gx * cellW + Math.random() * (cellW - 50);
+          let y = gy * cellH + Math.random() * (cellH - 50);
+          y = Math.max(0, y - cycle * 12);
+          const fontSizePx = 30 + Math.random() * 24;
+          const fontSize = `${fontSizePx}px`;
+          const angle = Math.floor(Math.random() * 360);
+          const div = document.createElement('div');
+          div.className = 'item';
+          div.textContent = n.toString();
+          div.style.left = `${x}px`;
+          div.style.top = `${y}px`;
+          div.style.fontSize = fontSize;
+          div.style.transform = `rotate(${angle}deg)`;
+          div.style.zIndex = (100 - n).toString();
+          gameArea.appendChild(div);
+        }
+        if (round !== 4) addClutter();
+        return;
+      }
+      let items = [];
+      if (round === 1) {
+        const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+        items = [...Array(60).keys()].map(n => (n + 1).toString())
+                .concat(Array.from({ length: 30 }, () => letters[Math.floor(Math.random() * letters.length)]));
+      } else {
+        items = [...Array(49).keys()].map(n => (n + 1).toString());
+      }
+      const lettersArr = items.filter(i => isNaN(i));
+      const numbersArr = items.filter(i => !isNaN(i)).sort((a, b) => b - a);
+      [...lettersArr, ...numbersArr].forEach((content, idx) => {
+        const fontSize = getRandomFontSize();
+        const pos = getRandomPositionAvoidingOverlap(fontSize);
+        const angle = Math.floor(Math.random() * 360);
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.textContent = content;
+        div.style.left = `${pos.x}px`;
+        div.style.top = `${pos.y}px`;
+        div.style.fontSize = fontSize;
+        div.style.transform = `rotate(${angle}deg)`;
+        div.style.zIndex = (!isNaN(content) ? (100 - parseInt(content)).toString() : '50');
+        gameArea.appendChild(div);
+      });
+      if (round !== 4) addClutter();
+    }
+    function showModal(message, showNextButton, showPlayAgain = false) {
+      modalMsg.innerHTML = message.replace(/\n/g,"<br>");
+      modalOverlay.classList.add("show");
+      nextRoundBtn.style.display = showNextButton ? "" : "none";
+      playAgainBtn.style.display = showPlayAgain ? "" : "none";
+      roundEnded = true;
+    }
+    function hideModal() { modalOverlay.classList.remove("show"); roundEnded = false; }
+    function handleRound6or7Submission(isRound7 = false) {
+      let val1 = parseInt(missing1Input.value, 10);
+      let val2 = parseInt(missing2Input.value, 10);
+      let checks = 0;
+      const missing = isRound7 ? round7missing : round6missing;
+      if (missing.includes(val1)) checks++;
+      if (missing.includes(val2) && val2 !== val1) checks++;
+      if (isRound7) {
+        round7Score = checks;
+        round7Display.textContent = `Round 7 Score: ${checks > 0 ? "✔".repeat(checks) : "0"}`;
+        round7Checkmarks.textContent = checks > 0 ? "✔".repeat(checks) : "";
+        roundEnded = true;
+        round6inputArea.style.display = "none";
+        // Only show Play Again, not Next Round!
+        showModal(
+          `Congratulations! You've finished all 7 rounds!<br><br><b>Click 'Play Again' to restart!</b>`,
+          false, true
+        );
+        round++;
+        return;
+      } else {
+        round6Score = checks;
+        round6Display.textContent = `Round 6 Score: ${checks > 0 ? "✔".repeat(checks) : "0"}`;
+        round6Checkmarks.textContent = checks > 0 ? "✔".repeat(checks) : "";
+        roundEnded = true;
+        round6inputArea.style.display = "none";
+        showModal(
+          `Round 6 Complete!<br>You got ${checks} out of 2.<br>` +
+          `Missing numbers: <b>${missing[0]}</b> and <b>${missing[1]}</b>` +
+          "<br><br>Click Next Round to see the final round!",
+          true, false
+        );
+        round++;
+      }
+    }
+    function startGame() {
+      expected = 1;
+      highest = 0;
+      timeLeft = 30;
+      timerDisplay.textContent = `Time: ${timeLeft}`;
+      scoreDisplay.textContent = (round >= 6) ? "—" : `Current Round Score: ${highest}`;
+      createItems();
+      if (timer) clearInterval(timer);
+      hideModal();
+      roundEnded = false;
+      round6inputArea.style.display = (round === 6 || round === 7) ? "flex" : "none";
+      if (round === 6 || round === 7) {
+        missing1Input.value = "";
+        missing2Input.value = "";
+        round6Checkmarks.textContent = "";
+        round7Checkmarks.textContent = "";
+      }
+      timer = setInterval(() => {
+        if (roundEnded) {
+          clearInterval(timer);
+          return;
+        }
+        timeLeft--;
+        timerDisplay.textContent = `Time: ${timeLeft}`;
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          if (round === 6) {
+            handleRound6or7Submission(false);
+          } else if (round === 7) {
+            handleRound6or7Submission(true);
+          } else {
+            endRound();
+          }
+        }
+      }, 1000);
+    }
+    function endRound() {
+      if (timer) clearInterval(timer);
+      if (round === 1) {
+        round1Score = highest;
+        round1Display.textContent = `Round 1 Score: ${round1Score}`;
+        round = 2;
+        showModal("Round 1 complete!<br>Click Next Round to start Round 2...", true, false);
+      } else if (round === 2) {
+        round2Score = highest;
+        round2Display.textContent = `Round 2 Score: ${round2Score}`;
+        round = 3;
+        showModal("Round 2 complete!<br>Click Next Round to start Round 3...", true, false);
+      } else if (round === 3) {
+        round3Score = highest;
+        round3Display.textContent = `Round 3 Score: ${round3Score}`;
+        round = 4;
+        showModal("Round 3 complete!<br>Click Next Round to start Round 4...", true, false);
+      } else if (round === 4) {
+        round4Score = highest;
+        round4Display.textContent = `Round 4 Score: ${round4Score}`;
+        round = 5;
+        showModal("Round 4 complete!<br>Click Next Round to start Round 5...", true, false);
+      } else if (round === 5) {
+        round5Score = highest;
+        round5Display.textContent = `Round 5 Score: ${round5Score}`;
+        round = 6;
+        showModal("Round 5 complete!<br>Click Next Round to start Round 6...", true, false);
+      } else if (round === 6) {
+        // handled in handleRound6or7Submission
+        return;
+      } else if (round === 7) {
+        // handled in handleRound6or7Submission
+        return;
+      }
+    }
+    nextRoundBtn.addEventListener('click', () => {
+      hideModal();
+      if (round <= 7) {
+        showLessonForRound(round, startGame);
+      } else {
+        startGame();
+      }
+    });
+    playAgainBtn.addEventListener('click', () => {
+      hideModal();
+      round = 1;
+      round1Score = round2Score = round3Score = round4Score = round5Score = round6Score = round7Score = 0;
+      round1Display.textContent = 'Round 1 Score: -';
+      round2Display.textContent = 'Round 2 Score: -';
+      round3Display.textContent = 'Round 3 Score: -';
+      round4Display.textContent = 'Round 4 Score: -';
+      round5Display.textContent = 'Round 5 Score: -';
+      round6Display.textContent = 'Round 6 Score: -';
+      round7Display.textContent = 'Round 7 Score: -';
+      round6Checkmarks.textContent = '';
+      round7Checkmarks.textContent = '';
+      round6inputArea.style.display = "none";
+      showLessonForRound(round, startGame);
+    });
+    gameArea.addEventListener('click', e => {
+      if (roundEnded) return;
+      if (round >= 6) return;
+      if (!e.target.classList.contains('item')) return;
+      const val = e.target.textContent;
+      if (val == expected.toString() && expected <= 49) {
+        e.target.remove();
+        highest = expected;
+        expected++;
+        scoreDisplay.textContent = `Current Round Score: ${highest}`;
+        if (expected > 49) {
+          if (timer) clearInterval(timer);
+          endRound();
+        }
+      }
+    });
+    playBtn.addEventListener('click', () => {
+      round = 1;
+      round1Score = round2Score = round3Score = round4Score = round5Score = round6Score = round7Score = 0;
+      round1Display.textContent = 'Round 1 Score: -';
+      round2Display.textContent = 'Round 2 Score: -';
+      round3Display.textContent = 'Round 3 Score: -';
+      round4Display.textContent = 'Round 4 Score: -';
+      round5Display.textContent = 'Round 5 Score: -';
+      round6Display.textContent = 'Round 6 Score: -';
+      round7Display.textContent = 'Round 7 Score: -';
+      round6Checkmarks.textContent = '';
+      round7Checkmarks.textContent = '';
+      hideModal();
+      round6inputArea.style.display = "none";
+      showLessonForRound(round, startGame);
+    });
+    round6SubmitBtn.addEventListener('click', () => {
+      if (roundEnded) return;
+      if (round === 6) {
+        handleRound6or7Submission(false);
+      } else if (round === 7) {
+        handleRound6or7Submission(true);
+      }
+      if (timer) clearInterval(timer);
+    });
+  </script>
+</body>
+</html>
